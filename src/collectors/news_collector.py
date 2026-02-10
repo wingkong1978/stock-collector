@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -226,8 +227,6 @@ class NewsCollector:
                     logger.warning(
                         f"采集失败 (尝试 {attempt + 1}/{max_retries}): {e}, 等待 {wait_time}s 后重试..."
                     )
-                    import time
-
                     time.sleep(wait_time)
                 else:
                     logger.error(f"个股新闻采集失败: {e}, 股票代码: {stock_code}")
@@ -301,8 +300,6 @@ class NewsCollector:
                     logger.warning(
                         f"采集失败 (尝试 {attempt + 1}/{max_retries}): {e}, 等待 {wait_time}s 后重试..."
                     )
-                    import time
-
                     time.sleep(wait_time)
                 else:
                     logger.error(f"市场新闻采集失败: {e}")
@@ -329,7 +326,6 @@ class NewsCollector:
 
         task_name = "financial_news"
         start_time = datetime.now()
-        last_error = None
 
         all_news = []
 
@@ -337,15 +333,13 @@ class NewsCollector:
             for attempt in range(max_retries):
                 try:
                     # 使用 akshare 获取财经要闻
-                    df = ak.stock_news_cx()
+                    df = ak.stock_news_main_cx()
 
                     if df is not None and not df.empty:
                         all_news.append(df)
                         logger.info(f"第 {page} 页采集成功: {len(df)} 条")
 
                     # 避免请求过于频繁
-                    import time
-
                     time.sleep(0.5)
                     break
 
@@ -367,16 +361,16 @@ class NewsCollector:
         # 合并所有数据
         combined_df = pd.concat(all_news, ignore_index=True)
 
-        # 去重
-        combined_df = combined_df.drop_duplicates(subset=["标题"], keep="first")
+        # 去重 (基于 summary 字段)
+        combined_df = combined_df.drop_duplicates(subset=["summary"], keep="first")
 
         # 添加元数据
         combined_df["_collected_at"] = datetime.now()
         combined_df["_news_id"] = combined_df.apply(
             lambda row: self._generate_news_id(
-                str(row.get("标题", row.get("title", ""))),
-                str(row.get("链接", row.get("url", ""))),
-                str(row.get("发布时间", row.get("pub_time", ""))),
+                str(row.get("summary", "")),
+                str(row.get("url", "")),
+                str(row.get("tag", "")),
             ),
             axis=1,
         )
@@ -426,8 +420,6 @@ class NewsCollector:
                 results[code] = df
 
             # 避免请求过于频繁
-            import time
-
             time.sleep(1)
 
         total_elapsed = (datetime.now() - total_start).total_seconds()

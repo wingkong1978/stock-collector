@@ -18,6 +18,7 @@ from loguru import logger
 
 from database.db_manager import get_db_manager, DatabaseManager
 from collectors.news_collector import NewsCollector
+from collectors.hot_sector_collector import HotSectorCollector
 
 # 配置日志
 logger.add(
@@ -29,12 +30,13 @@ logger.add(
 
 
 class StockCollector:
-    def __init__(self, config_path: str = "config", enable_news: bool = True):
+    def __init__(self, config_path: str = "config", enable_news: bool = True, enable_hot_sectors: bool = True):
         self.config_path = Path(config_path)
         self.load_config()
         self.setup_storage()
         self.db_manager: Optional[DatabaseManager] = None
         self.news_collector: Optional[NewsCollector] = None
+        self.hot_sector_collector: Optional[HotSectorCollector] = None
 
         # 如果配置了数据库，初始化数据库连接
         if self.settings.get("storage", {}).get("database"):
@@ -48,6 +50,15 @@ class StockCollector:
             except Exception as e:
                 logger.warning(f"新闻采集器初始化失败: {e}")
                 self.news_collector = None
+
+        # 初始化热点板块采集器
+        if enable_hot_sectors:
+            try:
+                self.hot_sector_collector = HotSectorCollector(config_path)
+                logger.info("热点板块采集器初始化成功")
+            except Exception as e:
+                logger.warning(f"热点板块采集器初始化失败: {e}")
+                self.hot_sector_collector = None
         
     def load_config(self):
         """加载配置文件"""
@@ -367,12 +378,13 @@ class StockCollector:
             self.db_manager and self.db_manager.log_collection(task_name, "error", str(e))
             return None
     
-    def run(self, include_news: bool = True):
+    def run(self, include_news: bool = True, include_hot_sectors: bool = False):
         """
         运行采集任务
 
         Args:
             include_news: 是否同时采集新闻数据
+            include_hot_sectors: 是否采集热点板块数据
         """
         logger.info("=" * 50)
         logger.info("股票数据采集任务开始")
@@ -391,6 +403,15 @@ class StockCollector:
             if current_hour >= 15 or current_hour < 9:  # 收盘后或开盘前
                 self.collect_index_data()
 
+            # 采集热点板块数据
+            if include_hot_sectors and self.hot_sector_collector:
+                logger.info("-" * 30)
+                logger.info("开始采集热点板块数据...")
+                try:
+                    self.hot_sector_collector.run(include_news=False)  # 避免过于频繁
+                except Exception as e:
+                    logger.error(f"热点板块采集过程中出错: {e}")
+
             # 采集新闻数据
             if include_news and self.news_collector:
                 logger.info("-" * 30)
@@ -405,6 +426,10 @@ class StockCollector:
 
     def close(self):
         """关闭资源"""
+        if self.hot_sector_collector:
+            self.hot_sector_collector.close()
+            logger.info("热点板块采集器已关闭")
+
         if self.news_collector:
             self.news_collector.close()
             logger.info("新闻采集器已关闭")
@@ -435,13 +460,33 @@ if __name__ == "__main__":
         action="store_true",
         help="仅采集新闻数据"
     )
+    parser.add_argument(
+        "--hot-sectors",
+        action="store_true",
+        help="同时采集热点板块数据"
+    )
+    parser.add_argument(
+        "--hot-sectors-only",
+        action="store_true",
+        help="仅采集热点板块数据"
+    )
     args = parser.parse_args()
 
     if args.news_only:
         # 仅运行新闻采集
         with NewsCollector() as news_collector:
             news_collector.run()
+    elif args.hot_sectors_only:
+        # 仅运行热点板块采集
+        with HotSectorCollector() as hot_collector:
+            hot_collector.run()
     else:
         # 运行完整采集
-        with StockCollector(enable_news=not args.no_news) as collector:
-            collector.run(include_news=not args.no_news)
+        with StockCollector(
+            enable_news=not args.no_news,
+            enable_hot_sectors=True
+        ) as collector:
+            collector.run(
+                include_news=not args.no_news,
+                include_hot_sectors=args.hot_sectors
+            )

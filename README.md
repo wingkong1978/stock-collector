@@ -16,7 +16,8 @@ stock-collector/
 ├── src/                    # 源代码
 │   ├── collectors/        # 数据采集模块
 │   │   ├── stock_collector.py     # 股票数据采集器
-│   │   └── news_collector.py      # 新闻采集器 ⭐ NEW
+│   │   ├── news_collector.py      # 新闻采集器 ⭐ NEW
+│   │   └── hot_sector_collector.py # 热点板块采集器 ⭐ NEW
 │   ├── database/          # 数据库模块 (PostgreSQL)
 │   │   └── db_manager.py  # 数据库管理器
 │   ├── storage/           # 数据存储模块
@@ -24,12 +25,16 @@ stock-collector/
 ├── data/                   # 数据存储目录
 │   ├── raw/               # 原始数据
 │   ├── processed/         # 处理后的数据
-│   └── news/              # 新闻数据 ⭐ NEW
+│   ├── news/              # 新闻数据 ⭐ NEW
+│   ├── sectors/           # 板块数据 ⭐ NEW
+│   └── sector_news/       # 板块新闻 ⭐ NEW
 ├── scripts/                # 脚本文件
 │   ├── daily_collect.sh   # 定时采集脚本
 │   ├── init_db.py         # 数据库初始化脚本
 │   ├── collect_news.py    # 新闻采集脚本 ⭐ NEW
-│   └── news_cron.sh       # 新闻定时任务 ⭐ NEW
+│   ├── news_cron.sh       # 新闻定时任务 ⭐ NEW
+│   ├── collect_hot_sectors.py  # 热点板块采集脚本 ⭐ NEW
+│   └── hot_sectors_cron.sh     # 热点板块定时任务 ⭐ NEW
 ├── logs/                   # 日志文件
 ├── requirements.txt        # Python依赖
 ├── .env.example           # 环境变量示例
@@ -41,6 +46,7 @@ stock-collector/
 
 - 📊 **多数据源支持**：东方财富、同花顺、新浪财经等
 - 📰 **新闻采集**：自动采集股票相关新闻和财经要闻
+- 🔥 **热点板块**：采集涨幅排行概念板块、行业板块及其新闻
 - ⏰ **定时采集**：支持定时任务，自动获取股票数据
 - 💾 **数据存储**：支持 CSV、JSON、SQLite、PostgreSQL 等多种格式
 - 🗄️ **PostgreSQL 数据库**：专业的数据库支持，高效的数据查询
@@ -136,16 +142,37 @@ python scripts/collect_news.py --days 7
 python scripts/collect_news.py --no-db
 ```
 
-#### 组合采集（股票 + 新闻）
+#### 热点板块采集 ⭐ NEW
 ```bash
-# 同时采集股票数据和新闻
-python src/collectors/stock_collector.py
+# 采集热点板块及新闻
+python scripts/collect_hot_sectors.py
+
+# 仅采集概念板块前20名
+python scripts/collect_hot_sectors.py --concept-only --top 20
+
+# 仅采集行业板块前20名
+python scripts/collect_hot_sectors.py --industry-only --top 20
+
+# 采集指定板块的新闻
+python scripts/collect_hot_sectors.py --sector "AI语料" --sector-type concept
+
+# 仅采集板块数据（不包含新闻）
+python scripts/collect_hot_sectors.py --no-news
+```
+
+#### 组合采集（股票 + 新闻 + 热点板块）
+```bash
+# 同时采集股票数据、新闻和热点板块
+python src/collectors/stock_collector.py --hot-sectors
 
 # 只采集股票数据，不采集新闻
 python src/collectors/stock_collector.py --no-news
 
 # 仅采集新闻
 python src/collectors/stock_collector.py --news-only
+
+# 仅采集热点板块
+python src/collectors/stock_collector.py --hot-sectors-only
 ```
 
 ### 数据库操作示例
@@ -238,6 +265,18 @@ crontab -e
 0 18 * * 1-5 /source_code/stock-collector/scripts/news_cron.sh --evening >> /source_code/stock-collector/logs/news_cron.log 2>&1
 ```
 
+#### 热点板块数据采集 ⭐ NEW
+```bash
+# 编辑 crontab
+crontab -e
+
+# 盘中定期采集热点板块（每30分钟）
+*/30 9-15 * * 1-5 /source_code/stock-collector/scripts/hot_sectors_cron.sh >> /source_code/stock-collector/logs/hot_sectors_cron.log 2>&1
+
+# 收盘后采集完整热点板块及新闻（每天 18:00）
+0 18 * * 1-5 /source_code/stock-collector/scripts/hot_sectors_cron.sh --with-news >> /source_code/stock-collector/logs/hot_sectors_cron.log 2>&1
+```
+
 ## 📊 数据源
 
 - [东方财富](https://www.eastmoney.com/)
@@ -258,6 +297,7 @@ crontab -e
 - [x] 基础数据采集功能
 - [x] 支持多数据源
 - [x] **新闻采集功能** ✅ 已完成
+- [x] **热点板块采集功能** ✅ 已完成
 - [ ] 数据可视化面板
 - [ ] 股价异常提醒
 - [ ] 历史数据分析
