@@ -15,16 +15,21 @@ stock-collector/
 │   └── settings.json      # 采集设置
 ├── src/                    # 源代码
 │   ├── collectors/        # 数据采集模块
+│   │   ├── stock_collector.py     # 股票数据采集器
+│   │   └── news_collector.py      # 新闻采集器 ⭐ NEW
 │   ├── database/          # 数据库模块 (PostgreSQL)
 │   │   └── db_manager.py  # 数据库管理器
 │   ├── storage/           # 数据存储模块
 │   └── utils/             # 工具函数
 ├── data/                   # 数据存储目录
 │   ├── raw/               # 原始数据
-│   └── processed/         # 处理后的数据
+│   ├── processed/         # 处理后的数据
+│   └── news/              # 新闻数据 ⭐ NEW
 ├── scripts/                # 脚本文件
 │   ├── daily_collect.sh   # 定时采集脚本
-│   └── init_db.py         # 数据库初始化脚本
+│   ├── init_db.py         # 数据库初始化脚本
+│   ├── collect_news.py    # 新闻采集脚本 ⭐ NEW
+│   └── news_cron.sh       # 新闻定时任务 ⭐ NEW
 ├── logs/                   # 日志文件
 ├── requirements.txt        # Python依赖
 ├── .env.example           # 环境变量示例
@@ -35,6 +40,7 @@ stock-collector/
 ## 🚀 功能特性
 
 - 📊 **多数据源支持**：东方财富、同花顺、新浪财经等
+- 📰 **新闻采集**：自动采集股票相关新闻和财经要闻
 - ⏰ **定时采集**：支持定时任务，自动获取股票数据
 - 💾 **数据存储**：支持 CSV、JSON、SQLite、PostgreSQL 等多种格式
 - 🗄️ **PostgreSQL 数据库**：专业的数据库支持，高效的数据查询
@@ -103,11 +109,48 @@ python scripts/init_db.py
 ## 🏃 使用方法
 
 ### 手动运行采集
+
+#### 股票数据采集
 ```bash
 python src/collectors/stock_collector.py
 ```
 
+#### 新闻数据采集 ⭐ NEW
+```bash
+# 采集所有新闻（财经要闻 + 股票新闻）
+python scripts/collect_news.py
+
+# 仅采集财经要闻
+python scripts/collect_news.py --financial
+
+# 仅采集关注股票的新闻
+python scripts/collect_news.py --stocks
+
+# 采集指定股票的新闻
+python scripts/collect_news.py --code 000001
+
+# 指定采集最近几天的新闻（默认3天）
+python scripts/collect_news.py --days 7
+
+# 仅保存到 CSV，不写入数据库
+python scripts/collect_news.py --no-db
+```
+
+#### 组合采集（股票 + 新闻）
+```bash
+# 同时采集股票数据和新闻
+python src/collectors/stock_collector.py
+
+# 只采集股票数据，不采集新闻
+python src/collectors/stock_collector.py --no-news
+
+# 仅采集新闻
+python src/collectors/stock_collector.py --news-only
+```
+
 ### 数据库操作示例
+
+#### 股票数据操作
 ```python
 from src.database.db_manager import DatabaseManager
 
@@ -130,10 +173,69 @@ prices = db.get_latest_prices(stock_code="000001", limit=10)
 db.close()
 ```
 
+#### 新闻数据操作 ⭐ NEW
+```python
+from src.database.db_manager import DatabaseManager
+from src.collectors.news_collector import NewsCollector
+
+# 创建新闻采集器
+news_collector = NewsCollector()
+
+# 采集个股新闻
+df = news_collector.collect_individual_news("000001", days=7)
+
+# 保存到数据库
+news_collector.save_news_to_database(df, stock_code="000001")
+
+# 使用数据库管理器查询新闻
+db = DatabaseManager()
+
+# 获取指定股票的最新新闻
+news = db.get_stock_news(stock_code="000001", limit=50)
+
+# 获取最近7天的新闻（所有股票）
+recent_news = db.get_stock_news(days=7, limit=100)
+
+# 获取新闻统计
+stats = db.get_news_stats(days=7)
+print(f"最近7天共采集 {stats['total_count']} 条新闻")
+
+# 批量插入新闻
+news_data = [
+    {
+        "news_id": "md5_hash_id",
+        "stock_code": "000001",
+        "title": "新闻标题",
+        "content": "新闻内容摘要",
+        "url": "https://example.com/news/1",
+        "source": "新浪财经",
+        "published_at": datetime(2024, 1, 15, 10, 30, 0)
+    }
+]
+db.insert_stock_news_batch(news_data)
+```
+
 ### 设置定时任务
+
+#### 股票数据采集
 ```bash
 # 添加到 crontab（每5分钟采集一次）
 */5 * * * * cd /path/to/stock-collector && python src/collectors/stock_collector.py >> logs/cron.log 2>&1
+```
+
+#### 新闻数据采集 ⭐ NEW
+```bash
+# 编辑 crontab
+crontab -e
+
+# 早间开盘前采集财经要闻（每天 8:00）
+0 8 * * 1-5 /source_code/stock-collector/scripts/news_cron.sh --morning >> /source_code/stock-collector/logs/news_cron.log 2>&1
+
+# 盘中定期采集新闻（每30分钟）
+*/30 9-15 * * 1-5 /source_code/stock-collector/scripts/news_cron.sh >> /source_code/stock-collector/logs/news_cron.log 2>&1
+
+# 收盘后完整采集（每天 18:00）
+0 18 * * 1-5 /source_code/stock-collector/scripts/news_cron.sh --evening >> /source_code/stock-collector/logs/news_cron.log 2>&1
 ```
 
 ## 📊 数据源
@@ -153,8 +255,9 @@ db.close()
 
 ## 📝 开发计划
 
-- [ ] 基础数据采集功能
-- [ ] 支持多数据源
+- [x] 基础数据采集功能
+- [x] 支持多数据源
+- [x] **新闻采集功能** ✅ 已完成
 - [ ] 数据可视化面板
 - [ ] 股价异常提醒
 - [ ] 历史数据分析

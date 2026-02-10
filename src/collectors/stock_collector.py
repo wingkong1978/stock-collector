@@ -17,6 +17,7 @@ import pandas as pd
 from loguru import logger
 
 from database.db_manager import get_db_manager, DatabaseManager
+from collectors.news_collector import NewsCollector
 
 # 配置日志
 logger.add(
@@ -28,15 +29,25 @@ logger.add(
 
 
 class StockCollector:
-    def __init__(self, config_path: str = "config"):
+    def __init__(self, config_path: str = "config", enable_news: bool = True):
         self.config_path = Path(config_path)
         self.load_config()
         self.setup_storage()
         self.db_manager: Optional[DatabaseManager] = None
+        self.news_collector: Optional[NewsCollector] = None
 
         # 如果配置了数据库，初始化数据库连接
         if self.settings.get("storage", {}).get("database"):
             self.init_database()
+
+        # 初始化新闻采集器
+        if enable_news:
+            try:
+                self.news_collector = NewsCollector(config_path)
+                logger.info("新闻采集器初始化成功")
+            except Exception as e:
+                logger.warning(f"新闻采集器初始化失败: {e}")
+                self.news_collector = None
         
     def load_config(self):
         """加载配置文件"""
@@ -260,28 +271,28 @@ class StockCollector:
                     self.db_manager and self.db_manager.log_collection(task_name, "warning", f"未找到匹配的股票: {stock_codes}")
                     return None
 
-            # 保存CSV文件
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"realtime_{timestamp}.csv"
-            filepath = self.raw_path / filename
-            filtered_df.to_csv(filepath, index=False, encoding="utf-8-sig")
+                # 保存CSV文件
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"realtime_{timestamp}.csv"
+                filepath = self.raw_path / filename
+                filtered_df.to_csv(filepath, index=False, encoding="utf-8-sig")
 
-            # 保存到数据库（批量插入）
-            if self.db_manager:
-                price_data = self._prepare_price_data(filtered_df)
-                if price_data:
-                    # 先同步股票基本信息
-                    self.sync_stock_basic_info()
+                # 保存到数据库（批量插入）
+                if self.db_manager:
+                    price_data = self._prepare_price_data(filtered_df)
+                    if price_data:
+                        # 先同步股票基本信息
+                        self.sync_stock_basic_info()
 
-                    # 批量插入价格数据
-                    if self.db_manager.insert_stock_prices_batch(price_data):
-                        logger.info(f"成功保存 {len(price_data)} 条价格数据到数据库")
+                        # 批量插入价格数据
+                        if self.db_manager.insert_stock_prices_batch(price_data):
+                            logger.info(f"成功保存 {len(price_data)} 条价格数据到数据库")
 
-            elapsed = (datetime.now() - start_time).total_seconds()
-            logger.info(f"实时数据已保存: {filepath}, 耗时: {elapsed:.2f}s")
-            self.db_manager and self.db_manager.log_collection(task_name, "success", f"采集成功: {len(filtered_df)} 条记录")
+                elapsed = (datetime.now() - start_time).total_seconds()
+                logger.info(f"实时数据已保存: {filepath}, 耗时: {elapsed:.2f}s")
+                self.db_manager and self.db_manager.log_collection(task_name, "success", f"采集成功: {len(filtered_df)} 条记录")
 
-            return filtered_df
+                return filtered_df
 
             except Exception as e:
                 last_error = e
@@ -356,8 +367,13 @@ class StockCollector:
             self.db_manager and self.db_manager.log_collection(task_name, "error", str(e))
             return None
     
-    def run(self):
-        """运行采集任务"""
+    def run(self, include_news: bool = True):
+        """
+        运行采集任务
+
+        Args:
+            include_news: 是否同时采集新闻数据
+        """
         logger.info("=" * 50)
         logger.info("股票数据采集任务开始")
         logger.info("=" * 50)
@@ -375,11 +391,24 @@ class StockCollector:
             if current_hour >= 15 or current_hour < 9:  # 收盘后或开盘前
                 self.collect_index_data()
 
+            # 采集新闻数据
+            if include_news and self.news_collector:
+                logger.info("-" * 30)
+                logger.info("开始采集新闻数据...")
+                try:
+                    self.news_collector.run()
+                except Exception as e:
+                    logger.error(f"新闻采集过程中出错: {e}")
+
         finally:
             logger.info("采集任务完成")
 
     def close(self):
         """关闭资源"""
+        if self.news_collector:
+            self.news_collector.close()
+            logger.info("新闻采集器已关闭")
+
         if self.db_manager:
             self.db_manager.close()
             logger.info("数据库连接已关闭")
@@ -393,5 +422,26 @@ class StockCollector:
         self.close()
 
 if __name__ == "__main__":
-    with StockCollector() as collector:
-        collector.run()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="股票数据采集器")
+    parser.add_argument(
+        "--no-news",
+        action="store_true",
+        help="不采集新闻数据"
+    )
+    parser.add_argument(
+        "--news-only",
+        action="store_true",
+        help="仅采集新闻数据"
+    )
+    args = parser.parse_args()
+
+    if args.news_only:
+        # 仅运行新闻采集
+        with NewsCollector() as news_collector:
+            news_collector.run()
+    else:
+        # 运行完整采集
+        with StockCollector(enable_news=not args.no_news) as collector:
+            collector.run(include_news=not args.no_news)

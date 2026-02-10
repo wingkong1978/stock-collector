@@ -5,6 +5,7 @@ import os
 import json
 import threading
 from contextlib import contextmanager
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 import psycopg2
@@ -119,7 +120,7 @@ class DatabaseManager:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(code, market)
         );
-        
+
         -- 股票实时数据表
         CREATE TABLE IF NOT EXISTS stock_prices (
             id SERIAL PRIMARY KEY,
@@ -130,11 +131,30 @@ class DatabaseManager:
             turnover DECIMAL(15, 2),
             collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-        
+
+        -- 股票新闻表
+        CREATE TABLE IF NOT EXISTS stock_news (
+            id SERIAL PRIMARY KEY,
+            news_id VARCHAR(32) UNIQUE NOT NULL,
+            stock_code VARCHAR(20),
+            title VARCHAR(500) NOT NULL,
+            content TEXT,
+            url VARCHAR(1000),
+            source VARCHAR(100),
+            published_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         -- 创建索引
         CREATE INDEX IF NOT EXISTS idx_stock_prices_code ON stock_prices(stock_code);
         CREATE INDEX IF NOT EXISTS idx_stock_prices_time ON stock_prices(collected_at);
-        
+
+        -- 新闻表索引
+        CREATE INDEX IF NOT EXISTS idx_stock_news_code ON stock_news(stock_code);
+        CREATE INDEX IF NOT EXISTS idx_stock_news_time ON stock_news(published_at);
+        CREATE INDEX IF NOT EXISTS idx_stock_news_id ON stock_news(news_id);
+
         -- 数据采集日志表
         CREATE TABLE IF NOT EXISTS collection_logs (
             id SERIAL PRIMARY KEY,
@@ -239,6 +259,123 @@ class DatabaseManager:
                 cursor.execute(sql, (task_name, status, message))
         except Exception as e:
             logger.error(f"记录日志失败: {e}")
+
+    def insert_stock_news(self, news_id: str, stock_code: Optional[str],
+                          title: str, content: str, url: str,
+                          source: str, published_at: Optional[datetime]) -> bool:
+        """插入单条股票新闻"""
+        sql = """
+        INSERT INTO stock_news (news_id, stock_code, title, content, url, source, published_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (news_id) DO UPDATE SET
+            title = EXCLUDED.title,
+            content = EXCLUDED.content,
+            url = EXCLUDED.url,
+            source = EXCLUDED.source,
+            published_at = EXCLUDED.published_at,
+            updated_at = CURRENT_TIMESTAMP
+        """
+        try:
+            with self.get_cursor() as cursor:
+                cursor.execute(sql, (news_id, stock_code, title, content, url, source, published_at))
+                logger.debug(f"新闻插入/更新成功: {news_id}")
+                return True
+        except Exception as e:
+            logger.error(f"插入新闻失败: {e}")
+            return False
+
+    def insert_stock_news_batch(self, data: List[Dict[str, Any]]) -> bool:
+        """批量插入股票新闻"""
+        sql = """
+        INSERT INTO stock_news (news_id, stock_code, title, content, url, source, published_at)
+        VALUES %s
+        ON CONFLICT (news_id) DO UPDATE SET
+            title = EXCLUDED.title,
+            content = EXCLUDED.content,
+            url = EXCLUDED.url,
+            source = EXCLUDED.source,
+            published_at = EXCLUDED.published_at,
+            updated_at = CURRENT_TIMESTAMP
+        """
+        try:
+            with self.get_cursor() as cursor:
+                values = [
+                    (d["news_id"], d["stock_code"], d["title"],
+                     d["content"], d["url"], d["source"], d["published_at"])
+                    for d in data
+                ]
+                execute_values(cursor, sql, values)
+                logger.info(f"批量插入/更新 {len(data)} 条新闻")
+                return True
+        except Exception as e:
+            logger.error(f"批量插入新闻失败: {e}")
+            return False
+
+    def get_stock_news(self, stock_code: Optional[str] = None,
+                       limit: int = 100,
+                       days: Optional[int] = None) -> List[Dict]:
+        """
+        获取股票新闻
+
+        Args:
+            stock_code: 股票代码（None 表示获取所有新闻）
+            limit: 返回条数限制
+            days: 只返回最近几天的数据
+
+        Returns:
+            新闻数据列表
+        """
+        base_sql = """
+        SELECT * FROM stock_news
+        WHERE 1=1
+        """
+        params = []
+
+        if stock_code:
+            base_sql += " AND stock_code = %s"
+            params.append(stock_code)
+
+        if days:
+            base_sql += " AND published_at >= NOW() - INTERVAL '%s days'"
+            params.append(days)
+
+        base_sql += " ORDER BY published_at DESC LIMIT %s"
+        params.append(limit)
+
+        try:
+            with self.get_cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(base_sql, params)
+                return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"查询新闻失败: {e}")
+            return []
+
+    def get_news_stats(self, days: int = 7) -> Dict[str, Any]:
+        """
+        获取新闻统计信息
+
+        Args:
+            days: 统计最近几天的数据
+
+        Returns:
+            统计信息字典
+        """
+        sql = """
+        SELECT
+            COUNT(*) as total_count,
+            COUNT(DISTINCT stock_code) as stock_count,
+            COUNT(DISTINCT source) as source_count
+        FROM stock_news
+        WHERE created_at >= NOW() - INTERVAL '%s days'
+        """
+        try:
+            with self.get_cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(sql, (days,))
+                row = cursor.fetchone()
+                return dict(row) if row else {}
+        except Exception as e:
+            logger.error(f"获取新闻统计失败: {e}")
+            return {}
     
     def close(self):
         """关闭连接池并重置单例状态"""
