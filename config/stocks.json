@@ -1,0 +1,13 @@
+{
+  "stocks": [
+    {"code": "000001", "name": "平安银行", "market": "sz"},
+    {"code": "600000", "name": "浦发银行", "market": "sh"},
+    {"code": "000858", "name": "五粮液", "market": "sz"},
+    {"code": "601318", "name": "中国平安", "market": "sh"}
+  ],
+  "indexs": [
+    {"code": "000001", "name": "上证指数"},
+    {"code": "399001", "name": "深证成指"},
+    {"code": "399006", "name": "创业板指"}
+  ]
+}

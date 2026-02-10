@@ -1,0 +1,25 @@
+{
+  "collection": {
+    "interval": 300,
+    "market_hours_only": true,
+    "retry_times": 3,
+    "timeout": 30
+  },
+  "storage": {
+    "format": "csv",
+    "path": "./data",
+    "compress": false,
+    "retention_days": 90
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "./logs/stock_collector.log",
+    "max_size": "10MB",
+    "backup_count": 5
+  },
+  "notification": {
+    "enabled": false,
+    "webhook": "",
+    "price_change_threshold": 0.05
+  }
+}
