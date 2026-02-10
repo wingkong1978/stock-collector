@@ -9,7 +9,16 @@
     "format": "csv",
     "path": "./data",
     "compress": false,
-    "retention_days": 90
+    "retention_days": 90,
+    "database": {
+      "type": "postgresql",
+      "host": "localhost",
+      "port": 5432,
+      "dbname": "stockdb",
+      "user": "stockuser",
+      "password": "${DB_PASSWORD}",
+      "sslmode": "prefer"
+    }
   },
   "logging": {
     "level": "INFO",
