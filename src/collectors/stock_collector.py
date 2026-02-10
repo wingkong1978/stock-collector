@@ -92,22 +92,102 @@ class StockCollector:
         return success_count > 0
 
     def _safe_decimal(self, value: Any) -> Optional[Decimal]:
-        """安全转换为 Decimal 类型"""
+        """
+        安全转换为 Decimal 类型
+        
+        处理以下特殊情况：
+        - None, NaN
+        - 空字符串 ""
+        - 缺失值 "-"
+        - 逗号分隔的数字 "1,000.50"
+        """
         try:
-            if pd.isna(value):
+            # 检查无效值
+            if value is None or pd.isna(value):
                 return None
-            return Decimal(str(value))
-        except (InvalidOperation, ValueError, TypeError):
+            
+            # 转换为字符串并清理
+            str_value = str(value).strip()
+            
+            # 检查空字符串或缺失值标记
+            if str_value == "" or str_value == "-":
+                return None
+            
+            # 移除逗号分隔符 (如 "1,000.50" -> "1000.50")
+            str_value = str_value.replace(",", "")
+            
+            # 转换为 Decimal
+            return Decimal(str_value)
+            
+        except (InvalidOperation, ValueError, TypeError) as e:
+            logger.debug(f"Decimal 转换失败: value={value}, error={e}")
             return None
 
     def _safe_int(self, value: Any) -> Optional[int]:
-        """安全转换为 int 类型"""
+        """
+        安全转换为 int 类型
+        
+        处理以下特殊情况：
+        - None, NaN
+        - 空字符串 ""
+        - 缺失值 "-"
+        - 逗号分隔的数字 "1,000,000"
+        """
         try:
-            if pd.isna(value):
+            # 检查无效值
+            if value is None or pd.isna(value):
                 return None
-            return int(float(str(value)))
-        except (ValueError, TypeError):
+            
+            # 转换为字符串并清理
+            str_value = str(value).strip()
+            
+            # 检查空字符串或缺失值标记
+            if str_value == "" or str_value == "-":
+                return None
+            
+            # 移除逗号分隔符
+            str_value = str_value.replace(",", "")
+            
+            # 转换为 int (先转 float 再转 int，处理科学计数法)
+            return int(float(str_value))
+            
+        except (ValueError, TypeError) as e:
+            logger.debug(f"Int 转换失败: value={value}, error={e}")
             return None
+
+    def _validate_stock_data(self, df: pd.DataFrame) -> bool:
+        """
+        验证股票数据完整性
+        
+        Args:
+            df: 股票数据 DataFrame
+            
+        Returns:
+            数据是否有效
+        """
+        if df is None:
+            logger.error("数据验证失败: DataFrame 为 None")
+            return False
+            
+        if df.empty:
+            logger.warning("数据验证警告: DataFrame 为空")
+            return False
+        
+        # 检查必需字段
+        required_columns = ["代码", "最新价"]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
+            logger.error(f"数据验证失败: 缺少必需字段 {missing_columns}")
+            return False
+        
+        # 检查数据行数
+        if len(df) == 0:
+            logger.warning("数据验证警告: 没有数据行")
+            return False
+            
+        logger.debug(f"数据验证通过: {len(df)} 行数据")
+        return True
 
     def _prepare_price_data(self, df: pd.DataFrame) -> List[Dict[str, Any]]:
         """准备价格数据用于批量插入"""
@@ -141,25 +221,44 @@ class StockCollector:
 
         return price_data
         
-    def collect_realtime_data(self):
-        """采集实时行情数据"""
+    def collect_realtime_data(self, max_retries: int = 3) -> Optional[pd.DataFrame]:
+        """
+        采集实时行情数据
+        
+        Args:
+            max_retries: 最大重试次数
+            
+        Returns:
+            采集到的数据 DataFrame，失败返回 None
+        """
         logger.info("开始采集实时数据...")
 
         task_name = "realtime_data_collection"
         start_time = datetime.now()
+        last_error = None
 
-        try:
-            # 获取A股实时行情
-            df = ak.stock_zh_a_spot_em()
+        # 重试机制
+        for attempt in range(max_retries):
+            try:
+                # 获取A股实时行情
+                df = ak.stock_zh_a_spot_em()
+                
+                # 验证数据
+                if not self._validate_stock_data(df):
+                    raise ValueError("数据源返回无效数据")
 
-            # 筛选关注的股票
-            stock_codes = [s["code"] for s in self.stocks_config["stocks"]]
-            filtered_df = df[df["代码"].isin(stock_codes)]
+                # 筛选关注的股票
+                stock_codes = [s["code"] for s in self.stocks_config.get("stocks", [])]
+                if not stock_codes:
+                    logger.warning("未配置关注的股票列表")
+                    return None
+                    
+                filtered_df = df[df["代码"].isin(stock_codes)].copy()
 
-            if filtered_df.empty:
-                logger.warning("未找到匹配的股票数据")
-                self.db_manager and self.db_manager.log_collection(task_name, "warning", "未找到匹配的股票数据")
-                return None
+                if filtered_df.empty:
+                    logger.warning(f"未找到匹配的股票数据: {stock_codes}")
+                    self.db_manager and self.db_manager.log_collection(task_name, "warning", f"未找到匹配的股票: {stock_codes}")
+                    return None
 
             # 保存CSV文件
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -184,11 +283,21 @@ class StockCollector:
 
             return filtered_df
 
-        except Exception as e:
-            elapsed = (datetime.now() - start_time).total_seconds()
-            logger.error(f"数据采集失败: {e}, 耗时: {elapsed:.2f}s")
-            self.db_manager and self.db_manager.log_collection(task_name, "error", str(e))
-            return None
+            except Exception as e:
+                last_error = e
+                elapsed = (datetime.now() - start_time).total_seconds()
+                
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # 指数退避: 1, 2, 4 秒
+                    logger.warning(f"采集失败 (尝试 {attempt + 1}/{max_retries}): {e}, 等待 {wait_time}s 后重试...")
+                    import time
+                    time.sleep(wait_time)
+                else:
+                    logger.error(f"数据采集失败 (已重试 {max_retries} 次): {e}, 总耗时: {elapsed:.2f}s")
+                    
+        # 所有重试都失败
+        self.db_manager and self.db_manager.log_collection(task_name, "error", f"重试 {max_retries} 次后失败: {last_error}")
+        return None
     
     def collect_index_data(self):
         """采集指数数据"""

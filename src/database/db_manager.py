@@ -3,6 +3,7 @@ PostgreSQL 数据库连接模块
 """
 import os
 import json
+import threading
 from contextlib import contextmanager
 from typing import Optional, List, Dict, Any
 
@@ -13,13 +14,38 @@ from loguru import logger
 
 
 class DatabaseManager:
-    """PostgreSQL 数据库管理器"""
+    """PostgreSQL 数据库管理器（线程安全单例）"""
+    
+    # 类级别的锁和实例
+    _instance: Optional['DatabaseManager'] = None
+    _instance_lock = threading.Lock()
+    _initialized = False
+    
+    def __new__(cls, config_path: str = "config/settings.json") -> 'DatabaseManager':
+        """线程安全的单例模式"""
+        if cls._instance is None:
+            with cls._instance_lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
     
     def __init__(self, config_path: str = "config/settings.json"):
-        self.config = self._load_config(config_path)
-        self.db_config = self.config.get("storage", {}).get("database", {})
-        self.connection_pool: Optional[SimpleConnectionPool] = None
-        self._init_pool()
+        """初始化（只执行一次）"""
+        # 避免重复初始化
+        if DatabaseManager._initialized:
+            return
+            
+        with DatabaseManager._instance_lock:
+            if DatabaseManager._initialized:
+                return
+                
+            self.config = self._load_config(config_path)
+            self.db_config = self.config.get("storage", {}).get("database", {})
+            self.connection_pool: Optional[SimpleConnectionPool] = None
+            self._init_pool()
+            
+            DatabaseManager._initialized = True
+            logger.info("DatabaseManager 单例初始化完成")
         
     def _load_config(self, config_path: str) -> dict:
         """加载配置文件"""
@@ -215,22 +241,39 @@ class DatabaseManager:
             logger.error(f"记录日志失败: {e}")
     
     def close(self):
-        """关闭连接池"""
-        if self.connection_pool:
-            self.connection_pool.closeall()
-            logger.info("数据库连接池已关闭")
+        """关闭连接池并重置单例状态"""
+        with DatabaseManager._instance_lock:
+            if self.connection_pool:
+                try:
+                    self.connection_pool.closeall()
+                    logger.info("数据库连接池已关闭")
+                except Exception as e:
+                    logger.error(f"关闭连接池失败: {e}")
+            
+            # 重置单例状态，允许重新创建实例
+            DatabaseManager._instance = None
+            DatabaseManager._initialized = False
+            db_manager = None
 
 
-# 单例模式
-db_manager: Optional[DatabaseManager] = None
+# 模块级别的单例实例
+_db_manager: Optional[DatabaseManager] = None
+_db_manager_lock = threading.Lock()
 
 
 def get_db_manager() -> DatabaseManager:
-    """获取数据库管理器实例（单例）"""
-    global db_manager
-    if db_manager is None:
-        db_manager = DatabaseManager()
-    return db_manager
+    """
+    获取数据库管理器实例（线程安全单例）
+    
+    Returns:
+        DatabaseManager 实例
+    """
+    global _db_manager
+    if _db_manager is None:
+        with _db_manager_lock:
+            if _db_manager is None:
+                _db_manager = DatabaseManager()
+    return _db_manager
 
 
 if __name__ == "__main__":
