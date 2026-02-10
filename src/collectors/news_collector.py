@@ -141,7 +141,7 @@ class NewsCollector:
             return False
 
         # 检查必需字段（不同来源字段名不同）
-        possible_title_cols = ["标题", "title", "news_title", "Title"]
+        possible_title_cols = ["标题", "title", "news_title", "Title", "新闻标题"]
         has_title = any(col in df.columns for col in possible_title_cols)
 
         if not has_title:
@@ -203,8 +203,8 @@ class NewsCollector:
                 df["_collected_at"] = datetime.now()
                 df["_news_id"] = df.apply(
                     lambda row: self._generate_news_id(
-                        str(row.get("标题", row.get("title", ""))),
-                        str(row.get("链接", row.get("url", ""))),
+                        str(row.get("新闻标题", row.get("标题", row.get("title", "")))),
+                        str(row.get("新闻链接", row.get("链接", row.get("url", "")))),
                         str(row.get("发布时间", row.get("pub_time", ""))),
                     ),
                     axis=1,
@@ -454,17 +454,17 @@ class NewsCollector:
             for _, row in df.iterrows():
                 # 提取字段（适配不同数据源）
                 title = str(
-                    row.get("标题", row.get("title", row.get("news_title", "")))
+                    row.get("新闻标题", row.get("标题", row.get("title", row.get("news_title", ""))))
                 ).strip()
 
                 content = str(
-                    row.get("内容", row.get("content", row.get("摘要", row.get("summary", ""))))
+                    row.get("新闻内容", row.get("内容", row.get("content", row.get("摘要", row.get("summary", "")))))
                 ).strip()
 
-                url = str(row.get("链接", row.get("url", row.get("news_url", "")))).strip()
+                url = str(row.get("新闻链接", row.get("链接", row.get("url", row.get("news_url", ""))))).strip()
 
                 source = str(
-                    row.get("来源", row.get("source", row.get("media_name", "未知")))
+                    row.get("文章来源", row.get("来源", row.get("source", row.get("media_name", "未知"))))
                 ).strip()
 
                 pub_time = self._safe_datetime(
