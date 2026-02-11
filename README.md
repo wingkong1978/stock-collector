@@ -1,312 +1,277 @@
-# Stock Collector 📈
+<div align="center">
 
-定时收集股票信息的数据采集与监控系统。
+# 📈 Stock Collector
 
-## 🎯 项目简介
+<!-- 徽章 -->
+![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![PostgreSQL](https://img.shields.io/badge/database-PostgreSQL-blue.svg)
+![Tests](https://img.shields.io/badge/tests-9%20passed-brightgreen.svg)
 
-本项目用于定时采集股票市场的实时数据和历史数据，支持多种数据源，并提供数据存储和分析功能。
+**功能全面的股票数据采集、分析与可视化工具**
 
-## 📁 项目结构
+[快速开始](#-快速开始) • [功能特性](#-功能特性) • [使用文档](#-使用文档) • [项目结构](#-项目结构)
 
-```
-stock-collector/
-├── config/                 # 配置文件
-│   ├── stocks.json        # 关注的股票列表
-│   └── settings.json      # 采集设置
-├── src/                    # 源代码
-│   ├── collectors/        # 数据采集模块
-│   │   ├── stock_collector.py     # 股票数据采集器
-│   │   ├── news_collector.py      # 新闻采集器 ⭐ NEW
-│   │   └── hot_sector_collector.py # 热点板块采集器 ⭐ NEW
-│   ├── database/          # 数据库模块 (PostgreSQL)
-│   │   └── db_manager.py  # 数据库管理器
-│   ├── storage/           # 数据存储模块
-│   └── utils/             # 工具函数
-├── data/                   # 数据存储目录
-│   ├── raw/               # 原始数据
-│   ├── processed/         # 处理后的数据
-│   ├── news/              # 新闻数据 ⭐ NEW
-│   ├── sectors/           # 板块数据 ⭐ NEW
-│   └── sector_news/       # 板块新闻 ⭐ NEW
-├── scripts/                # 脚本文件
-│   ├── daily_collect.sh   # 定时采集脚本
-│   ├── init_db.py         # 数据库初始化脚本
-│   ├── collect_news.py    # 新闻采集脚本 ⭐ NEW
-│   ├── news_cron.sh       # 新闻定时任务 ⭐ NEW
-│   ├── collect_hot_sectors.py  # 热点板块采集脚本 ⭐ NEW
-│   └── hot_sectors_cron.sh     # 热点板块定时任务 ⭐ NEW
-├── logs/                   # 日志文件
-├── requirements.txt        # Python依赖
-├── .env.example           # 环境变量示例
-├── README.md              # 项目说明
-└── .gitignore             # Git忽略文件
-```
+</div>
 
-## 🚀 功能特性
+---
 
-- 📊 **多数据源支持**：东方财富、同花顺、新浪财经等
-- 📰 **新闻采集**：自动采集股票相关新闻和财经要闻
-- 🔥 **热点板块**：采集涨幅排行概念板块、行业板块及其新闻
-- ⏰ **定时采集**：支持定时任务，自动获取股票数据
-- 💾 **数据存储**：支持 CSV、JSON、SQLite、PostgreSQL 等多种格式
-- 🗄️ **PostgreSQL 数据库**：专业的数据库支持，高效的数据查询
-- 📈 **数据监控**：实时监控股价变动，异常提醒
-- 🔧 **可扩展**：模块化设计，易于添加新的数据源
+## 📖 项目简介
 
-## 📦 安装依赖
+`stock-collector` 是一个基于 Python 开发的股票数据采集与分析系统。支持多数据源实时行情采集、新闻情感分析、技术指标计算和数据可视化，为量化投资和股票研究提供完整的数据解决方案。
+
+**核心能力：**
+- ✅ 多数据源自动切换（东方财富、新浪财经）
+- ✅ 实时行情与新闻采集
+- ✅ 技术指标计算（RSI、MACD、布林带、移动平均线）
+- ✅ 新闻情感分析（正面/负面/中性分类）
+- ✅ 数据可视化（价格图、技术指标图、情感分析图）
+- ✅ Excel 数据导出
+- ✅ 定时任务自动化
+
+---
+
+## ✨ 功能特性
+
+### 📊 数据采集
+- [x] **多源行情采集** - 支持东方财富、新浪财经，自动故障切换
+- [x] **个股新闻采集** - 实时采集股票相关新闻资讯
+- [x] **财经要闻采集** - 采集市场整体财经新闻
+- [x] **热点板块追踪** - 概念板块、行业板块涨幅排行及新闻
+
+### 🔬 数据分析
+- [x] **技术指标计算**
+  - RSI（相对强弱指数）
+  - MACD（指数平滑异同移动平均线）
+  - 布林带（Bollinger Bands）
+  - 移动平均线（MA5/10/20/60）
+- [x] **价格趋势分析** - 涨跌统计、波动率计算
+- [x] **成交量分析** - 量能变化、买卖力量对比
+- [x] **新闻情感分析** - 基于词典的情感分类，关键词提取
+
+### 📈 数据可视化
+- [x] **价格趋势图** - K线图 + 移动平均线 + 布林带
+- [x] **技术指标图** - RSI、MACD、涨跌幅柱状图
+- [x] **情感分析图** - 情感分布饼图、柱状图
+
+### 💾 数据导出与存储
+- [x] **Excel 导出** - 支持 .xlsx 格式，含统计信息
+- [x] **PostgreSQL 存储** - 结构化数据持久化
+- [x] **CSV 文件存储** - 轻量级数据保存
+
+### ⏰ 自动化
+- [x] **定时任务** - 系统 crontab 定时采集
+- [x] **自动降级** - 主数据源失败自动切换备用源
+- [x] **去重机制** - MD5 哈希去重，避免重复数据
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+- Python 3.11+
+- PostgreSQL（可选，支持 CSV 作为备选）
+
+### 安装
 
 ```bash
-# 安装 Python 依赖
+# 克隆仓库
+git clone https://github.com/wingkong1978/stock-collector.git
+cd stock-collector
+
+# 安装依赖
 pip install -r requirements.txt
 ```
 
-## ⚙️ 配置说明
+### 配置
 
-1. 编辑 `config/stocks.json` 添加关注的股票：
+编辑 `config/settings.json`：
 ```json
 {
-  "stocks": [
-    {"code": "000001", "name": "平安银行", "market": "sz"},
-    {"code": "600000", "name": "浦发银行", "market": "sh"},
-    {"code": "00700", "name": "腾讯控股", "market": "hk"}
-  ]
+  "storage": {
+    "type": "csv",
+    "path": "data"
+  }
 }
 ```
 
-2. 编辑 `config/settings.json` 设置采集参数：
-```json
-{
-  "collection_interval": 300,
-  "data_format": "csv",
-  "storage_path": "./data",
-  "log_level": "INFO"
-}
-```
+### 运行
 
-### 3. PostgreSQL 数据库配置（可选）
-
-1. 安装 PostgreSQL 并创建数据库：
 ```bash
-# Ubuntu/Debian
-sudo apt install postgresql
+# 股票分析（含技术指标和情感分析）
+python scripts/analyze_stock.py --code 600584 --all --chart
 
-# CentOS/RHEL
-sudo yum install postgresql-server
+# 数据导出
+python scripts/export_data.py --stock 600584
+
+# 运行测试
+pytest tests/ -v
 ```
 
-2. 创建数据库和用户：
-```sql
-CREATE DATABASE stockdb;
-CREATE USER stockuser WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE stockdb TO stockuser;
-```
+---
 
-3. 复制环境变量文件并配置密码：
+## 📚 使用文档
+
+### 1. 股票分析
+
+分析指定股票的技术指标和新闻情感：
+
 ```bash
-cp .env.example .env
-# 编辑 .env 文件，设置 DB_PASSWORD
+python scripts/analyze_stock.py --code 600584 --all --chart
 ```
 
-4. 初始化数据库表：
+输出：
+- 价格趋势分析
+- 技术指标（RSI、MACD、布林带）
+- 成交量分析
+- 新闻情感分析
+- 可视化图表（PNG）
+
+### 2. 数据导出
+
+导出股票数据到 Excel：
+
 ```bash
-python scripts/init_db.py
+# 导出所有数据
+python scripts/export_data.py
+
+# 导出指定股票
+python scripts/export_data.py --stock 600584
+
+# 只导出新闻
+python scripts/export_data.py --type news
 ```
 
-## 🏃 使用方法
+### 3. 定时任务配置
 
-### 手动运行采集
+编辑 crontab：
 
-#### 股票数据采集
 ```bash
-python src/collectors/stock_collector.py
+# 工作日 8:30-17:00 每30分钟采集
+0,30 8-17 * * 1-5 cd /source_code/stock-collector && bash scripts/collect_changdian.sh
 ```
 
-#### 新闻数据采集 ⭐ NEW
+### 4. 使用 Claude API
+
 ```bash
-# 采集所有新闻（财经要闻 + 股票新闻）
-python scripts/collect_news.py
+# 生成项目 README
+python scripts/claude_api_client.py --generate-readme
 
-# 仅采集财经要闻
-python scripts/collect_news.py --financial
-
-# 仅采集关注股票的新闻
-python scripts/collect_news.py --stocks
-
-# 采集指定股票的新闻
-python scripts/collect_news.py --code 000001
-
-# 指定采集最近几天的新闻（默认3天）
-python scripts/collect_news.py --days 7
-
-# 仅保存到 CSV，不写入数据库
-python scripts/collect_news.py --no-db
+# 直接提问
+python scripts/claude_api_client.py --prompt "你的问题"
 ```
 
-#### 热点板块采集 ⭐ NEW
+---
+
+## 🏗️ 项目结构
+
+```
+stock-collector/
+├── src/
+│   ├── collectors/          # 数据采集模块
+│   │   ├── multi_source_collector.py    # 多数据源采集
+│   │   ├── news_collector.py            # 新闻采集
+│   │   ├── hot_sector_collector.py      # 热点板块
+│   │   └── data_exporter.py             # 数据导出
+│   ├── analytics/           # 数据分析模块
+│   │   ├── stock_analyzer.py            # 技术分析
+│   │   ├── sentiment_analyzer.py        # 情感分析
+│   │   └── chart_generator.py           # 图表生成
+│   ├── database/            # 数据库模块
+│   │   └── db_manager.py                # PostgreSQL 管理
+│   └── storage/             # 存储模块
+├── scripts/                 # 脚本工具
+│   ├── collect_changdian.sh             # 定时采集脚本
+│   ├── analyze_stock.py                 # 分析工具
+│   ├── export_data.py                   # 导出工具
+│   └── claude_api_client.py             # Claude API 客户端
+├── tests/                   # 测试
+│   ├── test_stock_analyzer.py           # 股票分析测试
+│   └── test_news_collector.py           # 新闻采集测试
+├── docs/                    # 文档
+│   ├── ARCHITECTURE.md                  # 架构规范
+│   ├── NEWS_COLLECTOR.md                # 新闻采集文档
+│   └── HOT_SECTOR_COLLECTOR.md          # 热点板块文档
+├── data/                    # 数据目录
+│   ├── raw/                             # 原始行情数据
+│   ├── news/                            # 新闻数据
+│   ├── exports/                         # Excel 导出
+│   └── analytics/                       # 分析结果
+├── config/                  # 配置文件
+└── requirements.txt         # 依赖列表
+```
+
+---
+
+## 🧪 测试
+
+运行所有测试：
+
 ```bash
-# 采集热点板块及新闻
-python scripts/collect_hot_sectors.py
-
-# 仅采集概念板块前20名
-python scripts/collect_hot_sectors.py --concept-only --top 20
-
-# 仅采集行业板块前20名
-python scripts/collect_hot_sectors.py --industry-only --top 20
-
-# 采集指定板块的新闻
-python scripts/collect_hot_sectors.py --sector "AI语料" --sector-type concept
-
-# 仅采集板块数据（不包含新闻）
-python scripts/collect_hot_sectors.py --no-news
+pytest tests/ -v
 ```
 
-#### 组合采集（股票 + 新闻 + 热点板块）
-```bash
-# 同时采集股票数据、新闻和热点板块
-python src/collectors/stock_collector.py --hot-sectors
+测试覆盖：
+- ✅ 移动平均线计算测试
+- ✅ RSI 计算测试
+- ✅ MACD 计算测试
+- ✅ 布林带计算测试
+- ✅ 价格趋势分析测试
+- ✅ 成交量分析测试
+- ✅ 技术指标信号测试
+- ✅ 空数据处理测试
+- ✅ 集成测试
 
-# 只采集股票数据，不采集新闻
-python src/collectors/stock_collector.py --no-news
-
-# 仅采集新闻
-python src/collectors/stock_collector.py --news-only
-
-# 仅采集热点板块
-python src/collectors/stock_collector.py --hot-sectors-only
-```
-
-### 数据库操作示例
-
-#### 股票数据操作
-```python
-from src.database.db_manager import DatabaseManager
-
-# 创建数据库管理器
-db = DatabaseManager()
-
-# 初始化表结构
-db.init_tables()
-
-# 插入股票数据
-db.insert_stock("000001", "平安银行", "sz")
-
-# 插入价格数据
-db.insert_stock_price("000001", 12.50, 1.25, 1000000, 12500000.00)
-
-# 查询最新数据
-prices = db.get_latest_prices(stock_code="000001", limit=10)
-
-# 关闭连接
-db.close()
-```
-
-#### 新闻数据操作 ⭐ NEW
-```python
-from src.database.db_manager import DatabaseManager
-from src.collectors.news_collector import NewsCollector
-
-# 创建新闻采集器
-news_collector = NewsCollector()
-
-# 采集个股新闻
-df = news_collector.collect_individual_news("000001", days=7)
-
-# 保存到数据库
-news_collector.save_news_to_database(df, stock_code="000001")
-
-# 使用数据库管理器查询新闻
-db = DatabaseManager()
-
-# 获取指定股票的最新新闻
-news = db.get_stock_news(stock_code="000001", limit=50)
-
-# 获取最近7天的新闻（所有股票）
-recent_news = db.get_stock_news(days=7, limit=100)
-
-# 获取新闻统计
-stats = db.get_news_stats(days=7)
-print(f"最近7天共采集 {stats['total_count']} 条新闻")
-
-# 批量插入新闻
-news_data = [
-    {
-        "news_id": "md5_hash_id",
-        "stock_code": "000001",
-        "title": "新闻标题",
-        "content": "新闻内容摘要",
-        "url": "https://example.com/news/1",
-        "source": "新浪财经",
-        "published_at": datetime(2024, 1, 15, 10, 30, 0)
-    }
-]
-db.insert_stock_news_batch(news_data)
-```
-
-### 设置定时任务
-
-#### 股票数据采集
-```bash
-# 添加到 crontab（每5分钟采集一次）
-*/5 * * * * cd /path/to/stock-collector && python src/collectors/stock_collector.py >> logs/cron.log 2>&1
-```
-
-#### 新闻数据采集 ⭐ NEW
-```bash
-# 编辑 crontab
-crontab -e
-
-# 早间开盘前采集财经要闻（每天 8:00）
-0 8 * * 1-5 /source_code/stock-collector/scripts/news_cron.sh --morning >> /source_code/stock-collector/logs/news_cron.log 2>&1
-
-# 盘中定期采集新闻（每30分钟）
-*/30 9-15 * * 1-5 /source_code/stock-collector/scripts/news_cron.sh >> /source_code/stock-collector/logs/news_cron.log 2>&1
-
-# 收盘后完整采集（每天 18:00）
-0 18 * * 1-5 /source_code/stock-collector/scripts/news_cron.sh --evening >> /source_code/stock-collector/logs/news_cron.log 2>&1
-```
-
-#### 热点板块数据采集 ⭐ NEW
-```bash
-# 编辑 crontab
-crontab -e
-
-# 盘中定期采集热点板块（每30分钟）
-*/30 9-15 * * 1-5 /source_code/stock-collector/scripts/hot_sectors_cron.sh >> /source_code/stock-collector/logs/hot_sectors_cron.log 2>&1
-
-# 收盘后采集完整热点板块及新闻（每天 18:00）
-0 18 * * 1-5 /source_code/stock-collector/scripts/hot_sectors_cron.sh --with-news >> /source_code/stock-collector/logs/hot_sectors_cron.log 2>&1
-```
-
-## 📊 数据源
-
-- [东方财富](https://www.eastmoney.com/)
-- [同花顺](https://www.10jqka.com.cn/)
-- [新浪财经](https://finance.sina.com.cn/)
-- [腾讯财经](https://finance.qq.com/)
+---
 
 ## 🛠️ 技术栈
 
-- **Python 3.9+**
-- **akshare**: 股票数据采集
-- **pandas**: 数据处理
-- **schedule**: 定时任务
-- **requests**: HTTP 请求
+- **语言**: Python 3.11+
+- **数据处理**: Pandas, NumPy
+- **数据可视化**: Matplotlib
+- **数据库**: PostgreSQL, SQLite
+- **网络请求**: Requests, BeautifulSoup
+- **任务调度**: Crontab
+- **测试**: pytest
+- **日志**: Loguru
 
-## 📝 开发计划
+---
 
-- [x] 基础数据采集功能
-- [x] 支持多数据源
-- [x] **新闻采集功能** ✅ 已完成
-- [x] **热点板块采集功能** ✅ 已完成
-- [ ] 数据可视化面板
-- [ ] 股价异常提醒
-- [ ] 历史数据分析
-- [ ] Docker 部署支持
+## 📝 更新日志
+
+### v1.0.0 (2024-02-11)
+- ✅ 多数据源行情采集（东方财富、新浪财经）
+- ✅ 股票新闻采集与情感分析
+- ✅ 热点板块追踪
+- ✅ 技术指标计算（RSI、MACD、布林带、MA）
+- ✅ 数据可视化图表生成
+- ✅ Excel 数据导出
+- ✅ Claude API 客户端
+- ✅ pytest 测试覆盖
+- ✅ 架构规范文档
+
+---
+
+## 🤝 贡献指南
+
+欢迎提交 Issue 和 Pull Request！
+
+1. Fork 本仓库
+2. 创建你的 Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. 提交你的修改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到 Branch (`git push origin feature/AmazingFeature`)
+5. 打开一个 Pull Request
+
+---
 
 ## 📄 许可证
 
-MIT License
+本项目采用 [MIT](LICENSE) 许可证开源。
 
-## 👤 作者
+---
 
-Created by OpenClaw Agent
+<div align="center">
+
+**⭐ 如果这个项目对你有帮助，请给它一个 Star！**
+
+</div>
