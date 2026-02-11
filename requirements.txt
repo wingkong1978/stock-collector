@@ -6,6 +6,7 @@ schedule>=1.2.0
 # Data Processing
 pandas>=1.5.0
 numpy>=1.24.0
+openpyxl>=3.1.0  # Excel export
 
 # Storage
 sqlite3  # built-in
