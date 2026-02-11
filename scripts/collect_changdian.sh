@@ -65,3 +65,16 @@ python3 scripts/collect_news.py --code ${STOCK_CODE} --days 1
 echo ""
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ 采集完成"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] ========================================"
+
+# 汇总信息
+NEWEST_NEWS=$(ls -t data/news/news_${STOCK_CODE}_*.csv 2>/dev/null | head -1)
+NEWEST_DATA=$(ls -t data/raw/${STOCK_CODE}_*.csv 2>/dev/null | head -1)
+
+echo ""
+echo "📁 数据文件:"
+[ -n "$NEWEST_DATA" ] && echo "   行情数据: $NEWEST_DATA" || echo "   行情数据: 未采集"
+[ -n "$NEWEST_NEWS" ] && echo "   新闻数据: $NEWEST_NEWS" || echo "   新闻数据: 未采集"
+
+echo ""
+echo "💡 提示: 可使用以下命令查看最新数据"
+echo "   tail -20 logs/changdian_cron.log"
