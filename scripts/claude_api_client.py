@@ -14,12 +14,45 @@ class ClaudeAPIClient:
     """Claude API 客户端"""
     
     def __init__(self):
-        self.api_key = os.getenv('ANTHROPIC_AUTH_TOKEN')
+        # 尝试从环境变量获取
+        self.api_key = os.getenv('ANTHROPIC_AUTH_TOKEN') or os.getenv('ANTHROPIC_API_KEY')
         self.base_url = os.getenv('ANTHROPIC_BASE_URL', 'https://api.anthropic.com')
         self.model = 'claude-sonnet-4-5'
         
+        # 如果环境变量未设置，尝试从 .bashrc 加载
+        if not self.api_key:
+            self._load_from_bashrc()
+        
         if not self.api_key:
             raise ValueError("未设置 ANTHROPIC_AUTH_TOKEN 环境变量")
+    
+    def _load_from_bashrc(self):
+        """尝试从 .bashrc 加载环境变量"""
+        bashrc_path = Path.home() / '.bashrc'
+        if bashrc_path.exists():
+            import subprocess
+            try:
+                result = subprocess.run(
+                    ['bash', '-c', 'source ~/.bashrc && echo $ANTHROPIC_AUTH_TOKEN'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                token = result.stdout.strip()
+                if token:
+                    self.api_key = token
+                    # 同时获取 base_url
+                    result2 = subprocess.run(
+                        ['bash', '-c', 'source ~/.bashrc && echo $ANTHROPIC_BASE_URL'],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    base_url = result2.stdout.strip()
+                    if base_url:
+                        self.base_url = base_url
+            except:
+                pass
     
     def send_message(self, prompt: str, max_tokens: int = 4000) -> str:
         """发送消息到 Claude API"""
