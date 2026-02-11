@@ -29,29 +29,22 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] 📊 采集股票实时数据..."
 python3 -c "
 import sys
 sys.path.insert(0, 'src')
-from collectors.stock_collector import StockCollector
-import akshare as ak
+from collectors.multi_source_collector import MultiSourceStockCollector
 from datetime import datetime
 
 try:
-    # 获取实时行情
-    df = ak.stock_zh_a_spot_em()
-    stock_data = df[df['代码'] == '${STOCK_CODE}']
+    # 使用多数据源采集器
+    collector = MultiSourceStockCollector()
+    df = collector.collect_changdian()
     
-    if not stock_data.empty:
-        row = stock_data.iloc[0]
-        print(f\"✅ ${STOCK_NAME}(${STOCK_CODE}) 实时数据:\")
+    if df is not None and not df.empty:
+        row = df.iloc[0]
+        source = row.get('_source', 'unknown')
+        print(f\"✅ ${STOCK_NAME}(${STOCK_CODE}) 实时数据 [来源: {source}]:\")
         print(f\"   最新价: {row['最新价']}\")
         print(f\"   涨跌幅: {row['涨跌幅']}%\")
         print(f\"   成交量: {row['成交量']}\")
         print(f\"   成交额: {row['成交额']}\")
-        
-        # 保存到CSV
-        import pandas as pd
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = f\"data/raw/${STOCK_CODE}_${timestamp}.csv\"
-        stock_data.to_csv(output_file, index=False, encoding='utf-8-sig')
-        print(f\"   数据已保存: {output_file}\")
     else:
         print(f\"⚠️ 未找到 ${STOCK_CODE} 的实时数据\")
 except Exception as e:
@@ -68,7 +61,7 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] ========================================"
 
 # 汇总信息
 NEWEST_NEWS=$(ls -t data/news/news_${STOCK_CODE}_*.csv 2>/dev/null | head -1)
-NEWEST_DATA=$(ls -t data/raw/${STOCK_CODE}_*.csv 2>/dev/null | head -1)
+NEWEST_DATA=$(ls -t data/raw/stocks_sina_*.csv data/raw/stocks_eastmoney_*.csv data/raw/stocks_*.csv 2>/dev/null | head -1)
 
 echo ""
 echo "📁 数据文件:"
